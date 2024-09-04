@@ -9,7 +9,7 @@
 import { AppConfig } from '@backstage/config';
 import { AuthCallback } from 'isomorphic-git';
 import { AuthService } from '@backstage/backend-plugin-api';
-import { BackendFeatureCompat } from '@backstage/backend-plugin-api';
+import { BackendFeature } from '@backstage/backend-plugin-api';
 import { CacheService } from '@backstage/backend-plugin-api';
 import { CacheServiceOptions } from '@backstage/backend-plugin-api';
 import { CacheServiceSetOptions } from '@backstage/backend-plugin-api';
@@ -22,7 +22,6 @@ import Docker from 'dockerode';
 import { ErrorRequestHandler } from 'express';
 import express from 'express';
 import { HttpAuthService } from '@backstage/backend-plugin-api';
-import { IdentityService } from '@backstage/backend-plugin-api';
 import { isChildPath as isChildPath_2 } from '@backstage/backend-plugin-api';
 import { isDatabaseConflictError as isDatabaseConflictError_2 } from '@backstage/backend-plugin-api';
 import { KubeConfig } from '@kubernetes/client-node';
@@ -35,6 +34,7 @@ import { PermissionsService } from '@backstage/backend-plugin-api';
 import { PluginMetadataService } from '@backstage/backend-plugin-api';
 import { PushResult } from 'isomorphic-git';
 import { ReadCommitResult } from 'isomorphic-git';
+import { Request as Request_2 } from 'express';
 import { RequestHandler } from 'express';
 import { resolvePackagePath as resolvePackagePath_2 } from '@backstage/backend-plugin-api';
 import { resolveSafeChildPath as resolveSafeChildPath_2 } from '@backstage/backend-plugin-api';
@@ -43,7 +43,6 @@ import { Router } from 'express';
 import { SchedulerService } from '@backstage/backend-plugin-api';
 import { Server } from 'http';
 import { ServiceRef } from '@backstage/backend-plugin-api';
-import { TokenManagerService } from '@backstage/backend-plugin-api';
 import { TransportStreamOptions } from 'winston-transport';
 import { UrlReaderService } from '@backstage/backend-plugin-api';
 import { UserInfoService } from '@backstage/backend-plugin-api';
@@ -66,10 +65,15 @@ export type CacheClientOptions = CacheServiceOptions;
 // @public @deprecated (undocumented)
 export type CacheClientSetOptions = CacheServiceSetOptions;
 
-// Warning: (ae-forgotten-export) The symbol "CacheManager_2" needs to be exported by the entry point index.d.ts
-//
 // @public @deprecated (undocumented)
-export class CacheManager extends CacheManager_2 {}
+export class CacheManager {
+  // (undocumented)
+  forPlugin(pluginId: string): PluginCacheManager;
+  static fromConfig(
+    config: RootConfigService,
+    options?: CacheManagerOptions,
+  ): CacheManager;
+}
 
 // Warning: (ae-forgotten-export) The symbol "CacheManagerOptions_2" needs to be exported by the entry point index.d.ts
 //
@@ -100,7 +104,7 @@ export function createLegacyAuthAdapters<
     auth?: AuthService;
     httpAuth?: HttpAuthService;
     userInfo?: UserInfoService;
-    identity?: IdentityService;
+    identity?: LegacyIdentityService;
     tokenManager?: TokenManager;
     discovery: PluginEndpointDiscovery;
   },
@@ -158,7 +162,10 @@ export class DatabaseManager implements LegacyRootDatabaseService {
   // (undocumented)
   static fromConfig(
     config: Config,
-    options?: DatabaseManagerOptions,
+    options?: {
+      migrations?: DatabaseService['migrations'];
+      logger?: LoggerService;
+    },
   ): DatabaseManager;
 }
 
@@ -173,11 +180,6 @@ export class DockerContainerRunner implements ContainerRunner {
   // (undocumented)
   runContainer(options: RunContainerOptions): Promise<void>;
 }
-
-// Warning: (ae-forgotten-export) The symbol "dropDatabase_2" needs to be exported by the entry point index.d.ts
-//
-// @public @deprecated (undocumented)
-export const dropDatabase: typeof dropDatabase_2;
 
 // @public @deprecated
 export function errorHandler(
@@ -275,12 +277,7 @@ export class Git {
 
 // @public @deprecated
 class HostDiscovery implements DiscoveryService {
-  static fromConfig(
-    config: Config,
-    options?: {
-      basePath?: string;
-    },
-  ): HostDiscovery;
+  static fromConfig(config: Config): HostDiscovery;
   // (undocumented)
   getBaseUrl(pluginId: string): Promise<string>;
   // (undocumented)
@@ -322,6 +319,23 @@ export type KubernetesContainerRunnerOptions = {
 export type LegacyCreateRouter<TEnv> = (deps: TEnv) => Promise<RequestHandler>;
 
 // @public @deprecated
+export interface LegacyIdentityService {
+  // (undocumented)
+  getIdentity(options: { request: Request_2<unknown> }): Promise<
+    | {
+        expiresInSeconds?: number;
+        token: string;
+        identity: {
+          type: 'user';
+          userEntityRef: string;
+          ownershipEntityRefs: string[];
+        };
+      }
+    | undefined
+  >;
+}
+
+// @public @deprecated
 export const legacyPlugin: (
   name: string,
   createRouterImport: Promise<{
@@ -335,9 +349,7 @@ export const legacyPlugin: (
           logger: LoggerService;
           permissions: PermissionsService;
           scheduler: SchedulerService;
-          tokenManager: TokenManagerService;
           reader: UrlReaderService;
-          identity: IdentityService;
         },
         {
           logger: (log: LoggerService) => Logger;
@@ -345,15 +357,18 @@ export const legacyPlugin: (
             getClient(options?: CacheServiceOptions | undefined): CacheService;
           };
         }
-      >
+      > & {
+        tokenManager: TokenManager;
+        identity: LegacyIdentityService;
+      }
     >;
   }>,
-) => BackendFeatureCompat;
+) => BackendFeature;
 
-// Warning: (ae-forgotten-export) The symbol "LegacyRootDatabaseService_2" needs to be exported by the entry point index.d.ts
-//
 // @public @deprecated (undocumented)
-export type LegacyRootDatabaseService = LegacyRootDatabaseService_2;
+export type LegacyRootDatabaseService = {
+  forPlugin(pluginId: string): DatabaseService;
+};
 
 // @public @deprecated
 export function loadBackendConfig(options: {
@@ -384,17 +399,22 @@ export function makeLegacyPlugin<
 ): (
   name: string,
   createRouterImport: Promise<{
-    default: LegacyCreateRouter<TransformedEnv<TEnv, TEnvTransforms>>;
+    default: LegacyCreateRouter<
+      TransformedEnv<TEnv, TEnvTransforms> & {
+        tokenManager: TokenManager;
+        identity: LegacyIdentityService;
+      }
+    >;
   }>,
-) => BackendFeatureCompat;
+) => BackendFeature;
 
 // @public @deprecated
 export function notFoundHandler(): RequestHandler;
 
-// Warning: (ae-forgotten-export) The symbol "PluginCacheManager_2" needs to be exported by the entry point index.d.ts
-//
 // @public @deprecated (undocumented)
-export type PluginCacheManager = PluginCacheManager_2;
+export type PluginCacheManager = {
+  getClient(options?: CacheServiceOptions): CacheService;
+};
 
 // @public @deprecated (undocumented)
 export type PluginDatabaseManager = DatabaseService;
@@ -523,7 +543,12 @@ export interface StatusCheckHandlerOptions {
 }
 
 // @public @deprecated (undocumented)
-export type TokenManager = TokenManagerService;
+export interface TokenManager {
+  authenticate(token: string): Promise<void>;
+  getToken(): Promise<{
+    token: string;
+  }>;
+}
 
 // @public @deprecated
 export function useHotCleanup(

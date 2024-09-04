@@ -31,15 +31,15 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { collectLegacyRoutes } from './collectLegacyRoutes';
 // eslint-disable-next-line @backstage/no-relative-monorepo-imports
-import { toInternalBackstagePlugin } from '../../frontend-plugin-api/src/wiring/createFrontendPlugin';
+import { toInternalFrontendPlugin } from '../../frontend-plugin-api/src/wiring/createFrontendPlugin';
 import {
   createPlugin,
   createRoutableExtension,
   createRouteRef,
   useApp,
 } from '@backstage/core-plugin-api';
-import { createSpecializedApp } from '@backstage/frontend-app-api';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderInTestApp } from '@backstage/frontend-test-utils';
 
 describe('collectLegacyRoutes', () => {
   it('should collect legacy routes', () => {
@@ -55,7 +55,7 @@ describe('collectLegacyRoutes', () => {
     expect(
       collected.map(p => ({
         id: p.id,
-        extensions: toInternalBackstagePlugin(p).extensions.map(e => ({
+        extensions: toInternalFrontendPlugin(p).extensions.map(e => ({
           id: e.id,
           attachTo: e.attachTo,
           disabled: e.disabled,
@@ -73,8 +73,8 @@ describe('collectLegacyRoutes', () => {
             defaultConfig: {},
           },
           {
-            id: 'api:plugin.scoringdata.service',
-            attachTo: { id: 'app', input: 'apis' },
+            id: 'api:score-card/plugin.scoringdata.service',
+            attachTo: { id: 'root', input: 'apis' },
             disabled: false,
           },
         ],
@@ -89,8 +89,8 @@ describe('collectLegacyRoutes', () => {
             defaultConfig: {},
           },
           {
-            id: 'api:plugin.stackstorm.service',
-            attachTo: { id: 'app', input: 'apis' },
+            id: 'api:stackstorm/plugin.stackstorm.service',
+            attachTo: { id: 'root', input: 'apis' },
             disabled: false,
           },
         ],
@@ -111,8 +111,8 @@ describe('collectLegacyRoutes', () => {
             defaultConfig: {},
           },
           {
-            id: 'api:plugin.puppetdb.service',
-            attachTo: { id: 'app', input: 'apis' },
+            id: 'api:puppetDb/plugin.puppetdb.service',
+            attachTo: { id: 'root', input: 'apis' },
             disabled: false,
           },
         ],
@@ -158,7 +158,7 @@ describe('collectLegacyRoutes', () => {
     expect(
       collected.map(p => ({
         id: p.id,
-        extensions: toInternalBackstagePlugin(p).extensions.map(e => ({
+        extensions: toInternalFrontendPlugin(p).extensions.map(e => ({
           id: e.id,
           attachTo: e.attachTo,
           disabled: e.disabled,
@@ -209,27 +209,27 @@ describe('collectLegacyRoutes', () => {
             disabled: false,
           },
           {
-            id: 'api:plugin.catalog.service',
+            id: 'api:catalog/plugin.catalog.service',
             attachTo: {
-              id: 'app',
+              id: 'root',
               input: 'apis',
             },
             defaultConfig: undefined,
             disabled: false,
           },
           {
-            id: 'api:catalog-react.starred-entities',
+            id: 'api:catalog/catalog-react.starred-entities',
             attachTo: {
-              id: 'app',
+              id: 'root',
               input: 'apis',
             },
             defaultConfig: undefined,
             disabled: false,
           },
           {
-            id: 'api:plugin.catalog.entity-presentation',
+            id: 'api:catalog/plugin.catalog.entity-presentation',
             attachTo: {
-              id: 'app',
+              id: 'root',
               input: 'apis',
             },
             defaultConfig: undefined,
@@ -241,8 +241,8 @@ describe('collectLegacyRoutes', () => {
         id: 'score-card',
         extensions: [
           {
-            id: 'api:plugin.scoringdata.service',
-            attachTo: { id: 'app', input: 'apis' },
+            id: 'api:score-card/plugin.scoringdata.service',
+            attachTo: { id: 'root', input: 'apis' },
             disabled: false,
           },
         ],
@@ -262,7 +262,15 @@ describe('collectLegacyRoutes', () => {
         component: () =>
           Promise.resolve(() => {
             const app = useApp();
-            return <div>plugins: {app.getPlugins().map(p => p.getId())}</div>;
+            return (
+              <div>
+                plugins:{' '}
+                {app
+                  .getPlugins()
+                  .map(p => p.getId())
+                  .join(', ')}
+              </div>
+            );
           }),
       }),
     );
@@ -273,10 +281,10 @@ describe('collectLegacyRoutes', () => {
       </FlatRoutes>,
     );
 
-    render(createSpecializedApp({ features }).createRoot());
+    renderInTestApp(<div />, { features });
 
     await expect(
-      screen.findByText('plugins: test'),
+      screen.findByText('plugins: app, test'),
     ).resolves.toBeInTheDocument();
   });
 

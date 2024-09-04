@@ -15,19 +15,15 @@
  */
 
 import React from 'react';
-import {
-  compatWrapper,
-  convertLegacyRouteRef,
-} from '@backstage/core-compat-api';
-import { rootCatalogKubernetesRouteRef } from '../plugin';
+import { compatWrapper } from '@backstage/core-compat-api';
 import { EntityContentBlueprint } from '@backstage/plugin-catalog-react/alpha';
 
 export const entityKubernetesContent = EntityContentBlueprint.make({
   name: 'kubernetes',
   params: {
-    defaultPath: 'kubernetes',
+    defaultPath: '/kubernetes',
     defaultTitle: 'Kubernetes',
-    routeRef: convertLegacyRouteRef(rootCatalogKubernetesRouteRef),
+    filter: 'kind:component,resource',
     loader: () =>
       import('./KubernetesContentPage').then(m =>
         compatWrapper(<m.KubernetesContentPage />),

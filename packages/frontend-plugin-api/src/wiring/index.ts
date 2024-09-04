@@ -18,18 +18,14 @@ export { coreExtensionData } from './coreExtensionData';
 export {
   createExtension,
   type ExtensionDefinition,
+  type ExtensionDefinitionParameters,
   type CreateExtensionOptions,
-  type ExtensionDataValues,
   type ResolvedExtensionInput,
   type ResolvedExtensionInputs,
-  type LegacyCreateExtensionOptions,
-  type AnyExtensionInputMap,
-  type AnyExtensionDataMap,
 } from './createExtension';
 export {
   createExtensionInput,
   type ExtensionInput,
-  type LegacyExtensionInput,
 } from './createExtensionInput';
 export { type ExtensionDataContainer } from './createExtensionDataContainer';
 export {
@@ -43,8 +39,15 @@ export {
 export {
   createPlugin,
   createFrontendPlugin,
+  type FrontendPlugin,
+  type BackstagePlugin,
   type PluginOptions,
 } from './createFrontendPlugin';
+export {
+  createFrontendModule,
+  type FrontendModule,
+  type CreateFrontendModuleOptions,
+} from './createFrontendModule';
 export {
   createExtensionOverrides,
   type ExtensionOverridesOptions,
@@ -53,7 +56,6 @@ export { type Extension } from './resolveExtensionDefinition';
 export {
   type AnyRoutes,
   type AnyExternalRoutes,
-  type BackstagePlugin,
   type ExtensionOverrides,
   type FeatureFlagConfig,
   type FrontendFeature,
@@ -61,6 +63,7 @@ export {
 export {
   type CreateExtensionBlueprintOptions,
   type ExtensionBlueprint,
+  type ExtensionBlueprintParameters,
   createExtensionBlueprint,
 } from './createExtensionBlueprint';
 export { type ResolveInputValueOverrides } from './resolveInputOverrides';

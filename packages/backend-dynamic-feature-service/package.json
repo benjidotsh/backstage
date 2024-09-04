@@ -1,6 +1,6 @@
 {
   "name": "@backstage/backend-dynamic-feature-service",
-  "version": "0.2.16-next.3",
+  "version": "0.4.0-next.1",
   "description": "Backstage dynamic feature service",
   "backstage": {
     "role": "node-library"
@@ -49,7 +49,6 @@
     "@backstage/backend-common": "workspace:^",
     "@backstage/backend-defaults": "workspace:^",
     "@backstage/backend-plugin-api": "workspace:^",
-    "@backstage/backend-tasks": "workspace:^",
     "@backstage/cli-common": "workspace:^",
     "@backstage/cli-node": "workspace:^",
     "@backstage/config": "workspace:^",

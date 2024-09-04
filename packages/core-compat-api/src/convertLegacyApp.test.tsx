@@ -65,8 +65,8 @@ describe('convertLegacyApp', () => {
             defaultConfig: {},
           },
           {
-            id: 'api:plugin.scoringdata.service',
-            attachTo: { id: 'app', input: 'apis' },
+            id: 'api:score-card/plugin.scoringdata.service',
+            attachTo: { id: 'root', input: 'apis' },
             disabled: false,
           },
         ],
@@ -81,8 +81,8 @@ describe('convertLegacyApp', () => {
             defaultConfig: {},
           },
           {
-            id: 'api:plugin.stackstorm.service',
-            attachTo: { id: 'app', input: 'apis' },
+            id: 'api:stackstorm/plugin.stackstorm.service',
+            attachTo: { id: 'root', input: 'apis' },
             disabled: false,
           },
         ],
@@ -103,8 +103,8 @@ describe('convertLegacyApp', () => {
             defaultConfig: {},
           },
           {
-            id: 'api:plugin.puppetdb.service',
-            attachTo: { id: 'app', input: 'apis' },
+            id: 'api:puppetDb/plugin.puppetdb.service',
+            attachTo: { id: 'root', input: 'apis' },
             disabled: false,
           },
         ],

@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-import { UrlReaderService } from '@backstage/backend-plugin-api';
-import { resolveSafeChildPath } from '@backstage/backend-plugin-api';
+import {
+  LoggerService,
+  UrlReaderService,
+  resolveSafeChildPath,
+} from '@backstage/backend-plugin-api';
 import {
   Entity,
   getEntitySourceLocation,
@@ -25,7 +28,6 @@ import { InputError } from '@backstage/errors';
 import { ScmIntegrationRegistry } from '@backstage/integration';
 import { TECHDOCS_ANNOTATION } from '@backstage/plugin-techdocs-common';
 import path from 'path';
-import { Logger } from 'winston';
 import { PreparerResponse, RemoteProtocol } from './stages/prepare/types';
 
 /**
@@ -38,7 +40,7 @@ export type ParsedLocationAnnotation = {
 };
 
 /**
- * Returns a parset locations annotation
+ * Returns a parsed locations annotation
  * @public
  * @param annotationName - The name of the annotation in the entity metadata
  * @param entity - A TechDocs entity instance
@@ -114,7 +116,7 @@ export const transformDirLocation = (
 };
 
 /**
- * Returns a entity reference based on the TechDocs annotation type
+ * Returns an entity reference based on the TechDocs annotation type
  * @public
  * @param entity - A TechDocs instance
  * @param scmIntegration - An implementation for  SCM integration API
@@ -145,7 +147,7 @@ export const getLocationForEntity = (
 export const getDocFilesFromRepository = async (
   reader: UrlReaderService,
   entity: Entity,
-  opts?: { etag?: string; logger?: Logger },
+  opts?: { etag?: string; logger?: LoggerService },
 ): Promise<PreparerResponse> => {
   const { target } = parseReferenceAnnotation(TECHDOCS_ANNOTATION, entity);
 
