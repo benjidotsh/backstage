@@ -14,24 +14,68 @@
  * limitations under the License.
  */
 import {
-  createPlugin,
-  createRoutableExtension,
-} from '@backstage/core-plugin-api';
+  ApiBlueprint,
+  createFrontendPlugin,
+  discoveryApiRef,
+  fetchApiRef,
+  NavItemBlueprint,
+  PageBlueprint,
+} from '@backstage/frontend-plugin-api';
+import { RiRobot2Line } from '@remixicon/react';
+import { createElement } from 'react';
 
-import { rootRouteRef } from './routes';
+import { aiApiRef, AiClient } from './api';
+import { aiRouteRef } from './routes';
 
-export const aiPlugin = createPlugin({
-  id: 'ai',
-  routes: {
-    root: rootRouteRef,
+const AiNavIcon = ({
+  fontSize,
+}: {
+  fontSize?: 'small' | 'medium' | 'large' | 'inherit';
+}) => {
+  let size = 22;
+
+  if (fontSize === 'small') {
+    size = 18;
+  } else if (fontSize === 'large') {
+    size = 26;
+  }
+
+  return createElement(RiRobot2Line, { size });
+};
+
+export const AiChatPage = PageBlueprint.make({
+  params: {
+    path: '/ai',
+    routeRef: aiRouteRef,
+    loader: () =>
+      import('./components/AiChatPage/AiChatPage').then(m =>
+        createElement(m.AiChatPage),
+      ),
   },
 });
 
-export const AiPage = aiPlugin.provide(
-  createRoutableExtension({
-    name: 'AiPage',
-    component: () =>
-      import('./components/ExampleComponent').then(m => m.ExampleComponent),
-    mountPoint: rootRouteRef,
-  }),
-);
+export const AiNavItem = NavItemBlueprint.make({
+  params: {
+    title: 'AI Chat',
+    icon: AiNavIcon,
+    routeRef: aiRouteRef,
+  },
+});
+
+export const AiApi = ApiBlueprint.make({
+  params: defineParams =>
+    defineParams({
+      api: aiApiRef,
+      deps: {
+        discoveryApi: discoveryApiRef,
+        fetchApi: fetchApiRef,
+      },
+      factory: ({ discoveryApi, fetchApi }) =>
+        new AiClient({ discoveryApi, fetchApi }),
+    }),
+});
+
+export const aiPlugin = createFrontendPlugin({
+  pluginId: 'ai',
+  extensions: [AiChatPage, AiNavItem, AiApi],
+});

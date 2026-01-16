@@ -13,4 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export { ExampleComponent } from './ExampleComponent';
+import { createExtensionPoint } from '@backstage/backend-plugin-api';
+import { ConversationModel } from './models/types';
+
+export interface ConversationModelExtensionPoint {
+  registerModel(model: ConversationModel): void;
+}
+
+export const conversationModelExtensionPoint =
+  createExtensionPoint<ConversationModelExtensionPoint>({
+    id: 'ai.conversation-models',
+  });

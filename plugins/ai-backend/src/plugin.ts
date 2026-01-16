@@ -18,7 +18,10 @@ import {
   createBackendPlugin,
 } from '@backstage/backend-plugin-api';
 import { createRouter } from './router';
-import { todoListServiceRef } from './services/TodoListService';
+import { conversationModelExtensionPoint } from './extensions';
+import { ConversationModelRegistry } from './models/ConversationModelRegistry';
+import { defaultEchoModel } from './models/defaultModel';
+import { DatabaseConversationStore } from './database/DatabaseConversationStore';
 
 /**
  * aiPlugin backend plugin
@@ -28,17 +31,35 @@ import { todoListServiceRef } from './services/TodoListService';
 export const aiPlugin = createBackendPlugin({
   pluginId: 'ai',
   register(env) {
+    const modelRegistry = new ConversationModelRegistry();
+    env.registerExtensionPoint(conversationModelExtensionPoint, modelRegistry);
+
     env.registerInit({
       deps: {
+        config: coreServices.rootConfig,
+        database: coreServices.database,
         httpAuth: coreServices.httpAuth,
         httpRouter: coreServices.httpRouter,
-        todoList: todoListServiceRef,
+        logger: coreServices.logger,
       },
-      async init({ httpAuth, httpRouter, todoList }) {
+      async init({ config, database, httpAuth, httpRouter, logger }) {
+        if (!modelRegistry.hasModels()) {
+          modelRegistry.registerModel(defaultEchoModel);
+        }
+
+        const store = await DatabaseConversationStore.create({ database });
+        const guestUserEntityRef =
+          config.getOptionalString('auth.providers.guest.userEntityRef') ??
+          config.getOptionalString('ai.guestUserEntityRef') ??
+          'user:default/guest';
+
         httpRouter.use(
           await createRouter({
             httpAuth,
-            todoList,
+            logger,
+            store,
+            modelRegistry,
+            guestUserEntityRef,
           }),
         );
       },

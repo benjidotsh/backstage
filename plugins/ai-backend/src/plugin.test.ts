@@ -13,132 +13,75 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {
-  mockCredentials,
-  startTestBackend,
-} from '@backstage/backend-test-utils';
-import { createServiceFactory } from '@backstage/backend-plugin-api';
-import { todoListServiceRef } from './services/TodoListService';
+import { startTestBackend } from '@backstage/backend-test-utils';
 import { aiPlugin } from './plugin';
 import request from 'supertest';
-import { catalogServiceMock } from '@backstage/plugin-catalog-node/testUtils';
-import {
-  ConflictError,
-  AuthenticationError,
-  NotAllowedError,
-} from '@backstage/errors';
 
-// TEMPLATE NOTE:
-// Plugin tests are integration tests for your plugin, ensuring that all pieces
-// work together end-to-end. You can still mock injected backend services
-// however, just like anyone who installs your plugin might replace the
-// services with their own implementations.
+const parseConversationId = (payload: string) => {
+  const conversationLine = payload
+    .split('\n\n')
+    .find(line => line.includes('event: conversation'));
+
+  if (!conversationLine) {
+    return undefined;
+  }
+
+  const dataLine = conversationLine
+    .split('\n')
+    .find(line => line.startsWith('data: '));
+
+  if (!dataLine) {
+    return undefined;
+  }
+
+  const data = JSON.parse(dataLine.replace('data: ', '')) as {
+    conversation: { id: string };
+  };
+
+  return data.conversation.id;
+};
+
 describe('plugin', () => {
-  it('should create and read TODO items', async () => {
+  it('exposes models and persists conversations for signed-in users', async () => {
     const { server } = await startTestBackend({
       features: [aiPlugin],
     });
 
-    await request(server).get('/api/ai/todos').expect(200, {
-      items: [],
-    });
+    const modelsResponse = await request(server).get('/api/ai/models');
+    expect(modelsResponse.status).toBe(200);
+    expect(modelsResponse.body.items).toEqual([
+      { id: 'echo', title: 'Echo (built-in)' },
+    ]);
 
-    const createRes = await request(server)
-      .post('/api/ai/todos')
-      .send({ title: 'My Todo' });
+    const streamResponse = await request(server)
+      .post('/api/ai/chat/stream')
+      .send({ message: 'Hello', modelId: 'echo' });
 
-    expect(createRes.status).toBe(201);
-    expect(createRes.body).toEqual({
-      id: expect.any(String),
-      title: 'My Todo',
-      createdBy: mockCredentials.user().principal.userEntityRef,
-      createdAt: expect.any(String),
-    });
+    expect(streamResponse.status).toBe(200);
+    expect(streamResponse.text).toContain('event: done');
 
-    const createdTodoItem = createRes.body;
+    const conversationId = parseConversationId(streamResponse.text);
+    expect(conversationId).toBeDefined();
 
-    await request(server)
-      .get('/api/ai/todos')
-      .expect(200, {
-        items: [createdTodoItem],
-      });
+    const listResponse = await request(server).get('/api/ai/conversations');
+    expect(listResponse.status).toBe(200);
+    expect(listResponse.body.items).toHaveLength(1);
 
-    await request(server)
-      .get(`/api/ai/todos/${createdTodoItem.id}`)
-      .expect(200, createdTodoItem);
+    const conversationResponse = await request(server).get(
+      `/api/ai/conversations/${conversationId}`,
+    );
+    expect(conversationResponse.status).toBe(200);
+    expect(conversationResponse.body.messages).toHaveLength(2);
   });
 
-  it('should create TODO item with catalog information', async () => {
+  it('returns empty conversation list for guest credentials', async () => {
     const { server } = await startTestBackend({
-      features: [
-        aiPlugin,
-        catalogServiceMock.factory({
-          entities: [
-            {
-              apiVersion: 'backstage.io/v1alpha1',
-              kind: 'Component',
-              metadata: {
-                name: 'my-component',
-                namespace: 'default',
-                title: 'My Component',
-              },
-              spec: {
-                type: 'service',
-                owner: 'me',
-              },
-            },
-          ],
-        }),
-      ],
+      features: [aiPlugin],
     });
 
-    const createRes = await request(server)
-      .post('/api/ai/todos')
-      .send({ title: 'My Todo', entityRef: 'component:default/my-component' });
+    const response = await request(server).get('/api/ai/conversations');
 
-    expect(createRes.status).toBe(201);
-    expect(createRes.body).toEqual({
-      id: expect.any(String),
-      title: '[My Component] My Todo',
-      createdBy: mockCredentials.user().principal.userEntityRef,
-      createdAt: expect.any(String),
-    });
-  });
-
-  it('should forward errors from the TodoListService', async () => {
-    const { server } = await startTestBackend({
-      features: [
-        aiPlugin,
-        createServiceFactory({
-          service: todoListServiceRef,
-          deps: {},
-          factory: () => ({
-            createTodo: jest.fn().mockRejectedValue(new ConflictError()),
-            listTodos: jest.fn().mockRejectedValue(new AuthenticationError()),
-            getTodo: jest.fn().mockRejectedValue(new NotAllowedError()),
-          }),
-        }),
-      ],
-    });
-
-    const createRes = await request(server)
-      .post('/api/ai/todos')
-      .send({ title: 'My Todo', entityRef: 'component:default/my-component' });
-    expect(createRes.status).toBe(409);
-    expect(createRes.body).toMatchObject({
-      error: { name: 'ConflictError' },
-    });
-
-    const listRes = await request(server).get('/api/ai/todos');
-    expect(listRes.status).toBe(401);
-    expect(listRes.body).toMatchObject({
-      error: { name: 'AuthenticationError' },
-    });
-
-    const getRes = await request(server).get('/api/ai/todos/123');
-    expect(getRes.status).toBe(403);
-    expect(getRes.body).toMatchObject({
-      error: { name: 'NotAllowedError' },
-    });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ items: [] });
   });
 });

@@ -22,61 +22,87 @@ import express from 'express';
 import request from 'supertest';
 
 import { createRouter } from './router';
-import { todoListServiceRef } from './services/TodoListService';
+import { ConversationModelRegistry } from './models/ConversationModelRegistry';
+import { ConversationStore } from './database/DatabaseConversationStore';
+import { ConversationSummary } from './models/types';
 
-const mockTodoItem = {
-  title: 'Do the thing',
-  id: '123',
-  createdBy: mockCredentials.user().principal.userEntityRef,
+const mockConversation: ConversationSummary = {
+  id: 'conv-1',
+  title: 'Hello',
+  modelId: 'echo',
   createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
 };
 
-// TEMPLATE NOTE:
-// Testing the router directly allows you to write a unit test that mocks the provided options.
 describe('createRouter', () => {
   let app: express.Express;
-  let todoList: jest.Mocked<typeof todoListServiceRef.T>;
+  let store: jest.Mocked<ConversationStore>;
+  let registry: ConversationModelRegistry;
 
   beforeEach(async () => {
-    todoList = {
-      createTodo: jest.fn(),
-      listTodos: jest.fn(),
-      getTodo: jest.fn(),
+    store = {
+      createConversation: jest.fn(),
+      listConversations: jest.fn(),
+      getConversation: jest.fn(),
+      getConversationMessages: jest.fn(),
+      addMessage: jest.fn(),
+      updateConversationUpdatedAt: jest.fn(),
+      softDeleteConversation: jest.fn(),
     };
+
+    registry = new ConversationModelRegistry();
+    registry.registerModel({
+      info: { id: 'echo', title: 'Echo' },
+      async *stream() {
+        yield 'Hello';
+      },
+    });
+
     const router = await createRouter({
       httpAuth: mockServices.httpAuth(),
-      todoList,
+      logger: mockServices.logger.mock(),
+      store,
+      modelRegistry: registry,
+      guestUserEntityRef: 'user:default/guest',
     });
     app = express();
     app.use(router);
     app.use(mockErrorHandler());
   });
 
-  it('should create a TODO', async () => {
-    todoList.createTodo.mockResolvedValue(mockTodoItem);
-
-    const response = await request(app).post('/todos').send({
-      title: 'Do the thing',
+  it('returns registered models', async () => {
+    const response = await request(app).get('/models');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      items: [{ id: 'echo', title: 'Echo' }],
     });
-
-    expect(response.status).toBe(201);
-    expect(response.body).toEqual(mockTodoItem);
   });
 
-  it('should not allow unauthenticated requests to create a TODO', async () => {
-    todoList.createTodo.mockResolvedValue(mockTodoItem);
-
-    // TEMPLATE NOTE:
-    // The HttpAuth mock service considers all requests to be authenticated as a
-    // mock user by default. In order to test other cases we need to explicitly
-    // pass an authorization header with mock credentials.
+  it('returns empty conversations for guests', async () => {
     const response = await request(app)
-      .post('/todos')
-      .set('Authorization', mockCredentials.none.header())
-      .send({
-        title: 'Do the thing',
-      });
+      .get('/conversations')
+      .set('Authorization', mockCredentials.none.header());
 
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ items: [] });
+  });
+
+  it('streams chat responses and persists for users', async () => {
+    store.createConversation.mockResolvedValue(mockConversation);
+    store.addMessage.mockResolvedValue({
+      id: 'msg-1',
+      role: 'assistant',
+      content: 'Hello',
+      createdAt: new Date().toISOString(),
+    });
+
+    const response = await request(app)
+      .post('/chat/stream')
+      .send({ message: 'Hi', modelId: 'echo' });
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('event: conversation');
+    expect(response.text).toContain('event: delta');
+    expect(response.text).toContain('event: done');
   });
 });

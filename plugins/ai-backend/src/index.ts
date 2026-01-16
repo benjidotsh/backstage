@@ -14,3 +14,5 @@
  * limitations under the License.
  */
 export { aiPlugin as default } from './plugin';
+export { conversationModelExtensionPoint } from './extensions';
+export type { ConversationModel, ModelInfo } from './models/types';

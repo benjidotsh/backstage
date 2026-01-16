@@ -45,6 +45,7 @@ import { convertLegacyPageExtension } from '@backstage/core-compat-api';
 import { convertLegacyEntityContentExtension } from '@backstage/plugin-catalog-react/alpha';
 import { pluginInfoResolver } from './pluginInfoResolver';
 import { appModuleNav } from './modules/appModuleNav';
+import aiPlugin from '@backstage/plugin-ai';
 
 /*
 
@@ -128,6 +129,7 @@ const app = createApp({
     convertedTechdocsPlugin,
     userSettingsPlugin,
     homePlugin,
+    aiPlugin,
     appVisualizerPlugin,
     kubernetesPlugin,
     notFoundErrorPageModule,

@@ -13,12 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { aiPlugin, AiChatPage, AiNavItem } from './plugin';
 
-describe('ai', () => {
-  it('should export plugin', () => {
-    expect(aiPlugin).toBeDefined();
-    expect(AiChatPage).toBeDefined();
-    expect(AiNavItem).toBeDefined();
-  });
-});
+export type ChatRole = 'user' | 'assistant' | 'system';
+
+export type ChatMessage = {
+  id: string;
+  role: ChatRole;
+  content: string;
+  createdAt: string;
+};
+
+export type ChatMessageInput = {
+  role: ChatRole;
+  content: string;
+};
+
+export type ConversationSummary = {
+  id: string;
+  title: string;
+  modelId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ModelInfo = {
+  id: string;
+  title: string;
+};
+
+export type ConversationModel = {
+  info: ModelInfo;
+  stream(options: {
+    messages: ChatMessageInput[];
+    signal?: AbortSignal;
+  }): AsyncIterable<string>;
+};

@@ -46,6 +46,7 @@
     "@backstage/frontend-defaults": "workspace:^",
     "@backstage/frontend-plugin-api": "workspace:^",
     "@backstage/integration-react": "workspace:^",
+    "@backstage/plugin-ai": "workspace:^",
     "@backstage/plugin-api-docs": "workspace:^",
     "@backstage/plugin-app": "workspace:^",
     "@backstage/plugin-app-visualizer": "workspace:^",

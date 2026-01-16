@@ -13,4 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export { aiPlugin, AiPage } from './plugin';
+export { aiPlugin, AiChatPage, AiNavItem } from './plugin';
+export { aiRouteRef } from './routes';
+export * from './api';
+export { aiPlugin as default } from './plugin';
