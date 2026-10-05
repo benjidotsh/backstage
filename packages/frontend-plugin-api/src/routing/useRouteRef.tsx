@@ -21,6 +21,7 @@ import { RouteRef } from './RouteRef';
 import { SubRouteRef } from './SubRouteRef';
 import { ExternalRouteRef } from './ExternalRouteRef';
 import { RouteFunc, routeResolutionApiRef, useApi } from '../apis';
+import { useFinalization } from './useFinalization';
 
 /**
  * React hook for constructing URLs to routes.
@@ -41,10 +42,12 @@ export function useRouteRef<TParams extends AnyRouteRefParams>(
 ): RouteFunc<TParams> | undefined {
   const { pathname } = useLocation();
   const routeResolutionApi = useApi(routeResolutionApiRef);
+  const finalization = useFinalization(routeResolutionApi);
 
   const routeFunc = useMemo(
     () => routeResolutionApi.resolve(routeRef, { sourcePath: pathname }),
-    [routeResolutionApi, routeRef, pathname],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [routeResolutionApi, routeRef, pathname, finalization],
   );
 
   return routeFunc;

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { PropsWithChildren } from 'react';
 import { MemoryRouter, Router } from 'react-router-dom';
 import { createVersionedContextForTesting } from '@backstage/version-bridge';
@@ -22,6 +22,7 @@ import { useRouteRef } from './useRouteRef';
 import { createRouteRef } from './RouteRef';
 import { createSubRouteRef } from './SubRouteRef';
 import { createBrowserHistory } from 'history';
+import { createDeferred } from '@backstage/types';
 import { TestApiProvider } from '@backstage/test-utils';
 import { routeResolutionApiRef } from '../apis';
 
@@ -94,6 +95,31 @@ describe('v1 consumer', () => {
 
     const routeFunc = renderedHook.result.current;
     expect(routeFunc).toBeUndefined();
+  });
+
+  it('should resolve routes again once the app is finalized', async () => {
+    const routeRef = createRouteRef();
+    let finalized = false;
+    const finalization = createDeferred();
+    const routeResolutionApi = {
+      resolve: () => (finalized ? () => '/hello' : undefined),
+      getFinalizationPromise: () => (finalized ? undefined : finalization),
+    };
+
+    const renderedHook = renderHook(() => useRouteRef(routeRef), {
+      wrapper: ({ children }: PropsWithChildren<{}>) => (
+        <TestApiProvider apis={[[routeResolutionApiRef, routeResolutionApi]]}>
+          <MemoryRouter children={children} />
+        </TestApiProvider>
+      ),
+    });
+
+    expect(renderedHook.result.current).toBeUndefined();
+
+    finalized = true;
+    await act(async () => finalization.resolve());
+
+    expect(renderedHook.result.current?.()).toBe('/hello');
   });
 
   it('re-resolves the routeFunc when the search parameters change', () => {

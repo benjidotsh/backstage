@@ -81,6 +81,7 @@ export function createBootstrapApp(options: {
       isSessionBoundaryAttachment(node, input),
     skipChild: options.skipBootstrapChild,
     onMissingApi: options.onMissingApi,
+    bootstrap: true,
   });
 
   const element = options.tree.root.instance?.getData(

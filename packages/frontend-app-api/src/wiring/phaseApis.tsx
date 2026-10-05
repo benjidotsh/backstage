@@ -35,6 +35,7 @@ import {
   type ExtensionFactoryMiddleware,
   type IdentityApi,
 } from '@backstage/frontend-plugin-api';
+import { createDeferred, DeferredPromise } from '@backstage/types';
 import { matchRoutes } from 'react-router-dom';
 // eslint-disable-next-line @backstage/no-relative-monorepo-imports
 import { AppIdentityProxy } from '../../../core-app-api/src/apis/implementations/IdentityApi/AppIdentityProxy';
@@ -113,6 +114,7 @@ export class AppTreeApiProxy implements AppTreeApi {
 export class RouteResolutionApiProxy implements RouteResolutionApi {
   #delegate: RouteResolutionApi | undefined;
   #routeObjects: BackstageRouteObject[] | undefined;
+  #finalization: DeferredPromise | undefined;
 
   private readonly routeBindings: Map<ExternalRouteRef, RouteRef | SubRouteRef>;
   private readonly appBasePath: string;
@@ -144,6 +146,7 @@ export class RouteResolutionApiProxy implements RouteResolutionApi {
   initialize(
     routeInfo: RouteInfo,
     routeRefsById: Map<string, RouteRef | SubRouteRef>,
+    bootstrap?: boolean,
   ) {
     this.#delegate = new RouteResolver(
       routeInfo.routePaths,
@@ -156,11 +159,22 @@ export class RouteResolutionApiProxy implements RouteResolutionApi {
     );
     this.#routeObjects = routeInfo.routeObjects;
 
+    if (bootstrap) {
+      this.#finalization ??= createDeferred();
+    } else {
+      this.#finalization?.resolve();
+      this.#finalization = undefined;
+    }
+
     return routeInfo;
   }
 
   getRouteObjects() {
     return this.#routeObjects;
+  }
+
+  getFinalizationPromise(): Promise<void> | undefined {
+    return this.#finalization;
   }
 }
 
@@ -250,6 +264,7 @@ export function instantiateAndInitializePhaseTree(options: {
   onMissingApi?(ctx: { node: AppNode; apiRefId: string }): void;
   predicateContext?: ExtensionPredicateContext;
   stopAtAttachment?(ctx: { node: AppNode; input: string }): boolean;
+  bootstrap?: boolean;
 }) {
   instantiateAppNodeTree(
     options.tree.root,
@@ -274,6 +289,7 @@ export function instantiateAndInitializePhaseTree(options: {
   options.routeResolutionApi.initialize(
     routeInfo,
     options.routeRefsById.routes,
+    options.bootstrap,
   );
   options.appTreeApi.initialize(routeInfo);
 }

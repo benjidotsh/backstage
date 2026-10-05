@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { renderHook } from '@testing-library/react';
-import { PropsWithChildren } from 'react';
+import { act, render, renderHook, screen } from '@testing-library/react';
+import { PropsWithChildren, Suspense } from 'react';
 import { MemoryRouter, Router } from 'react-router-dom';
 import { createVersionedContextForTesting } from '@backstage/version-bridge';
 import {
@@ -27,6 +27,7 @@ import { useRouteRef } from './useRouteRef';
 import { createRouteRef } from './RouteRef';
 import { createExternalRouteRef } from './ExternalRouteRef';
 import { createBrowserHistory } from 'history';
+import { createDeferred } from '@backstage/types';
 import { TestApiProvider } from '@backstage/test-utils';
 
 describe('useRouteRef', () => {
@@ -215,6 +216,54 @@ describe('useRouteRef', () => {
       });
 
       expect(renderedHook.result.current).toBeUndefined();
+    });
+
+    it('should wait for app finalization before resolving routes', async () => {
+      const routeRef = createRouteRef({ id: 'ref1' });
+      const externalRouteRef = createExternalRouteRef({
+        id: 'external-ref',
+        optional: true,
+      });
+      let finalized = false;
+      const finalization = createDeferred();
+      const mockRouteResolutionApi = {
+        resolve: () => (finalized ? () => '/route' : undefined),
+        getFinalizationPromise: () => (finalized ? undefined : finalization),
+      };
+
+      function RequiredLink() {
+        const link = useRouteRef(routeRef);
+        return <div>Required: {link()}</div>;
+      }
+
+      function OptionalLink() {
+        const link = useRouteRef(externalRouteRef);
+        return <div>Optional: {link?.() ?? 'none'}</div>;
+      }
+
+      render(
+        <TestApiProvider
+          apis={[[routeResolutionApiRef, mockRouteResolutionApi]]}
+        >
+          <MemoryRouter>
+            <Suspense fallback="Waiting">
+              <RequiredLink />
+            </Suspense>
+            <OptionalLink />
+          </MemoryRouter>
+        </TestApiProvider>,
+      );
+
+      expect(screen.getByText('Waiting')).toBeInTheDocument();
+      expect(screen.getByText('Optional: none')).toBeInTheDocument();
+
+      finalized = true;
+      await act(async () => finalization.resolve());
+
+      await expect(
+        screen.findByText('Required: /route'),
+      ).resolves.toBeInTheDocument();
+      expect(screen.getByText('Optional: /route')).toBeInTheDocument();
     });
   });
 });

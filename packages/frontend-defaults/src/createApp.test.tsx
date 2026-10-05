@@ -17,6 +17,7 @@
 import {
   AppTreeApi,
   ApiBlueprint,
+  AppRootElementBlueprint,
   appTreeApiRef,
   coreExtensionData,
   createApiRef,
@@ -29,6 +30,7 @@ import {
   createFrontendFeatureLoader,
   createFrontendModule,
   useAppNode,
+  useRouteRef,
   FrontendPluginInfo,
 } from '@backstage/frontend-plugin-api';
 import { ThemeBlueprint } from '@backstage/plugin-app-react';
@@ -37,8 +39,10 @@ import { createApp } from './createApp';
 import { mockApis, renderWithEffects } from '@backstage/test-utils';
 import {
   featureFlagsApiRef,
+  createRouteRef as createLegacyRouteRef,
   IdentityApi,
   useApi,
+  useRouteRef as useLegacyRouteRef,
 } from '@backstage/core-plugin-api';
 import { default as appPluginOriginal } from '@backstage/plugin-app';
 import { ComponentType, useState, useEffect } from 'react';
@@ -293,6 +297,53 @@ describe('createApp', () => {
 
     await expect(
       screen.findByText('sign-in bootstrap failed'),
+    ).resolves.toBeInTheDocument();
+  });
+
+  it('should resolve page routes in app root elements once the app is finalized', async () => {
+    const pageRouteRef = createLegacyRouteRef({ id: 'test-page' });
+
+    function NewHookLink() {
+      const link = useRouteRef(pageRouteRef);
+      return <div>New hook link: {link?.()}</div>;
+    }
+
+    function LegacyHookLink() {
+      const link = useLegacyRouteRef(pageRouteRef);
+      return <div>Legacy hook link: {link()}</div>;
+    }
+
+    const app = createApp({
+      advanced: {
+        configLoader: async () => ({ config: mockApis.config() }),
+      },
+      features: [
+        appPlugin,
+        createFrontendPlugin({
+          pluginId: 'test',
+          extensions: [
+            PageBlueprint.make({
+              params: { path: '/test-page', routeRef: pageRouteRef },
+            }),
+            AppRootElementBlueprint.make({
+              name: 'new-hook',
+              params: { element: <NewHookLink /> },
+            }),
+            AppRootElementBlueprint.make({
+              name: 'legacy-hook',
+              params: { element: <LegacyHookLink /> },
+            }),
+          ],
+        }),
+      ],
+    });
+
+    await renderWithEffects(app.createRoot());
+    await expect(
+      screen.findByText('New hook link: /test-page'),
+    ).resolves.toBeInTheDocument();
+    await expect(
+      screen.findByText('Legacy hook link: /test-page'),
     ).resolves.toBeInTheDocument();
   });
 

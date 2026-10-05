@@ -22,6 +22,8 @@ import {
   routeResolutionApiRef,
   useApi,
 } from '@backstage/frontend-plugin-api';
+// eslint-disable-next-line @backstage/no-relative-monorepo-imports
+import { useFinalization } from '../../../frontend-plugin-api/src/routing/useFinalization';
 import {
   AnyParams,
   ExternalRouteRef,
@@ -100,6 +102,7 @@ export function useRouteRef<Params extends AnyParams>(
 ): RouteFunc<Params> | undefined {
   const { pathname } = useLocation();
   const routeResolutionApi = useRouteResolutionApi();
+  const finalization = useFinalization(routeResolutionApi);
   const versionedContext = useVersionedContext<{ 1: RouteResolver }>(
     'routing-context',
   );
@@ -118,7 +121,8 @@ export function useRouteRef<Params extends AnyParams>(
     } catch {
       return null;
     }
-  }, [routeResolutionApi, routeRef, pathname]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeResolutionApi, routeRef, pathname, finalization]);
 
   const legacyRouteFunc = useMemo(
     () => resolver && resolver.resolve(routeRef, { pathname }),
@@ -128,6 +132,7 @@ export function useRouteRef<Params extends AnyParams>(
   if (newRouteFunc !== null) {
     const isOptional = 'optional' in routeRef && routeRef.optional;
     if (!newRouteFunc && !isOptional) {
+      if (finalization) throw finalization;
       throw new Error(`No path for ${routeRef}`);
     }
     return newRouteFunc;
